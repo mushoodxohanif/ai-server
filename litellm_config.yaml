@@ -1,0 +1,126 @@
+# ============================================================
+# LiteLLM Proxy Configuration
+# MacBook Pro M5 Pro AI Server
+# Use-case model registry (one model per employee task)
+# ============================================================
+
+model_list:
+
+  # --- Auto-router (semantic intent classification) ---
+  - model_name: auto
+    litellm_params:
+      model: auto_router/auto
+      auto_router_config_path: "config/auto_router.json"
+      auto_router_default_model: general
+      auto_router_embedding_model: nomic-embed-text
+    model_info:
+      mode: chat
+      description: "Classifies prompt intent and routes to the best use-case model"
+
+  # --- Router embeddings (internal — not for direct employee use) ---
+  - model_name: nomic-embed-text
+    litellm_params:
+      model: ollama/nomic-embed-text
+      api_base: http://localhost:11434
+    model_info:
+      mode: embedding
+      description: "Embedding model for auto-router semantic matching"
+
+  # --- Research (web search synthesis) ---
+  - model_name: research
+    litellm_params:
+      model: ollama/deepseek-r1:70b
+      api_base: http://localhost:11434
+      stream: true
+    model_info:
+      mode: chat
+      description: "Strong reasoning for synthesizing search results"
+
+  # --- Coding ---
+  - model_name: coding
+    litellm_params:
+      model: ollama/qwen2.5-coder:32b
+      api_base: http://localhost:11434
+      stream: true
+    model_info:
+      mode: chat
+      description: "Purpose-built code generation and debugging"
+
+  # --- Conversational ---
+  - model_name: chat
+    litellm_params:
+      model: ollama/phi4:14b
+      api_base: http://localhost:11434
+      stream: true
+    model_info:
+      mode: chat
+      description: "Fast, natural dialogue"
+
+  # --- All-rounder ---
+  - model_name: general
+    litellm_params:
+      model: ollama/qwen3:32b
+      api_base: http://localhost:11434
+      stream: true
+    model_info:
+      mode: chat
+      description: "Tools, thinking, and general tasks"
+
+  # --- Image generation ---
+  - model_name: image
+    litellm_params:
+      model: ollama/x/flux2-klein
+      api_base: http://localhost:11434
+    model_info:
+      mode: image
+      description: "Text-to-image via Ollama flux2-klein"
+
+  # --- Video generation (placeholder) ---
+  - model_name: video
+    litellm_params:
+      model: ollama/phi4:14b
+      api_base: http://localhost:11434
+      mock_response: "Video generation is not yet available on this server. Ollama does not currently support video models. This feature is planned for a future release when dedicated worker hardware or Ollama video support is available."
+    model_info:
+      mode: chat
+      description: "Placeholder — video generation coming soon"
+
+# ============================================================
+# General Settings
+# ============================================================
+general_settings:
+  # Secrets loaded from .env at runtime (never commit real values here):
+  #   LITELLM_MASTER_KEY — admin UI password and full-access API key
+  #   DATABASE_URL       — PostgreSQL connection string
+
+  # Rate limiting defaults (can override per key)
+  max_parallel_requests: 10
+  max_budget: null            # Set a USD budget limit if desired
+  budget_duration: "30d"
+
+  store_model_in_db: true
+
+# ============================================================
+# LiteLLM Settings
+# ============================================================
+litellm_settings:
+  request_timeout: 600        # 10 min timeout for long responses
+  num_retries: 2
+  fallbacks:                  # Per use-case model → all-rounder; auto → general on failure
+    - auto:
+        - general
+    - research:
+        - general
+    - coding:
+        - general
+    - chat:
+        - general
+    - image:
+        - general
+    - video:
+        - general
+
+router_settings:
+  routing_strategy: "usage-based-routing"
+  num_retries: 2
+  timeout: 300

@@ -1,0 +1,16 @@
+# Secrets and local env
+.env
+
+# Python
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# PostgreSQL dumps and backups
+*.sql
+backups/
+
+# macOS
+.DS_Store

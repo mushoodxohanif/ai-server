@@ -1,0 +1,31 @@
+# LAN HTTPS for LiteLLM — set LAN_IP in .env
+#
+# Browsers do NOT send SNI for IP addresses — default_sni is required.
+# See: https://github.com/caddyserver/caddy/issues/6364
+
+{
+auto_https disable_redirects
+default_sni {$LAN_IP}
+servers {
+protocols h1 h2
+}
+}
+
+http://{$LAN_IP} {
+redir https://{host}{uri} permanent
+}
+
+https://{$LAN_IP}, https://:443 {
+tls internal
+
+@ui_login path /ui/login
+redir @ui_login /ui/login/ permanent
+
+reverse_proxy host.docker.internal:4000 {
+header_up Host {host}
+header_up X-Forwarded-Host {host}
+header_up X-Real-IP {remote_host}
+header_up X-Forwarded-For {remote_host}
+header_up X-Forwarded-Proto {scheme}
+}
+}

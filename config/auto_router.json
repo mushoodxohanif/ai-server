@@ -1,0 +1,135 @@
+{
+  "encoder_type": "ollama",
+  "encoder_name": "nomic-embed-text",
+  "routes": [
+    {
+      "name": "research",
+      "description": "Web research, fact-finding, and source synthesis",
+      "utterances": [
+        "what are the latest regulations on",
+        "compare X and Y",
+        "find sources for",
+        "search the web for",
+        "what is the current news about",
+        "summarize recent developments in",
+        "look up statistics on",
+        "find credible sources about",
+        "research the history of",
+        "what do experts say about",
+        "gather information on",
+        "fact check",
+        "cite sources for"
+      ],
+      "score_threshold": 0.45,
+      "function_schemas": null,
+      "llm": null,
+      "metadata": {}
+    },
+    {
+      "name": "coding",
+      "description": "Software development, debugging, and code review",
+      "utterances": [
+        "write a Python function",
+        "fix this bug",
+        "refactor this class",
+        "implement a REST API",
+        "debug this error",
+        "write unit tests for",
+        "optimize this SQL query",
+        "convert this code to",
+        "explain this stack trace",
+        "review this pull request",
+        "add TypeScript types to",
+        "create a React component",
+        "write a bash script",
+        "fix the linter errors in"
+      ],
+      "score_threshold": 0.45,
+      "function_schemas": null,
+      "llm": null,
+      "metadata": {}
+    },
+    {
+      "name": "chat",
+      "description": "Casual conversation and simple explanations",
+      "utterances": [
+        "hello",
+        "hi there",
+        "tell me a joke",
+        "explain simply",
+        "good morning",
+        "how are you",
+        "thanks for your help",
+        "can you chat with me",
+        "give me a fun fact",
+        "what should I have for lunch",
+        "recommend a book",
+        "help me brainstorm ideas casually"
+      ],
+      "score_threshold": 0.45,
+      "function_schemas": null,
+      "llm": null,
+      "metadata": {}
+    },
+    {
+      "name": "image",
+      "description": "Text-to-image generation and visual design",
+      "utterances": [
+        "generate an image of",
+        "draw a logo",
+        "create a mockup",
+        "make an illustration of",
+        "design a banner for",
+        "create artwork showing",
+        "render a picture of",
+        "generate a thumbnail for",
+        "make a concept art of",
+        "create an icon for"
+      ],
+      "score_threshold": 0.45,
+      "function_schemas": null,
+      "llm": null,
+      "metadata": {}
+    },
+    {
+      "name": "video",
+      "description": "Video and animation generation requests",
+      "utterances": [
+        "create a video",
+        "animate this",
+        "make a short clip of",
+        "generate a video showing",
+        "turn this into a video",
+        "create an animation of",
+        "produce a video for",
+        "make a GIF animation of"
+      ],
+      "score_threshold": 0.45,
+      "function_schemas": null,
+      "llm": null,
+      "metadata": {}
+    },
+    {
+      "name": "general",
+      "description": "General-purpose tasks, tools, and ambiguous requests",
+      "utterances": [
+        "help me with this task",
+        "analyze this document",
+        "summarize the following",
+        "translate this text",
+        "write an email about",
+        "create a plan for",
+        "brainstorm options for",
+        "what do you think about",
+        "help me decide between",
+        "draft a proposal for",
+        "organize these notes",
+        "explain the pros and cons"
+      ],
+      "score_threshold": 0.35,
+      "function_schemas": null,
+      "llm": null,
+      "metadata": {}
+    }
+  ]
+}
