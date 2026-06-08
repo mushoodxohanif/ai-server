@@ -92,6 +92,7 @@ general_settings:
   # Secrets loaded from .env at runtime (never commit real values here):
   #   LITELLM_MASTER_KEY — admin UI password and full-access API key
   #   DATABASE_URL       — PostgreSQL connection string
+  #   REDIS_HOST/PORT/PASSWORD — Redis cache and router state (Docker)
 
   # Rate limiting defaults (can override per key)
   max_parallel_requests: 10
@@ -100,12 +101,27 @@ general_settings:
 
   store_model_in_db: true
 
+  # Open WebUI per-user spend tracking (requires ENABLE_FORWARD_USER_INFO_HEADERS on Open WebUI)
+  user_header_mappings:
+    - header_name: X-OpenWebUI-User-Email
+      litellm_user_role: internal_user
+
 # ============================================================
 # LiteLLM Settings
 # ============================================================
 litellm_settings:
   request_timeout: 600        # 10 min timeout for long responses
   num_retries: 2
+  cache: true
+  cache_params:
+    type: redis
+    host: os.environ/REDIS_HOST
+    port: os.environ/REDIS_PORT
+    password: os.environ/REDIS_PASSWORD
+  extra_spend_tag_headers:    # lowercase — Open WebUI sends headers in lowercase
+    - "x-openwebui-user-id"
+    - "x-openwebui-user-email"
+    - "x-openwebui-user-name"
   fallbacks:                  # Per use-case model → all-rounder; auto → general on failure
     - auto:
         - general
@@ -121,6 +137,9 @@ litellm_settings:
         - general
 
 router_settings:
-  routing_strategy: "usage-based-routing"
+  routing_strategy: "simple-shuffle"   # required for auto-router pre-routing hook
   num_retries: 2
   timeout: 300
+  redis_host: os.environ/REDIS_HOST
+  redis_port: os.environ/REDIS_PORT
+  redis_password: os.environ/REDIS_PASSWORD

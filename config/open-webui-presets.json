@@ -1,0 +1,90 @@
+{
+  "models": [
+    {
+      "id": "task-research",
+      "base_model_id": "research",
+      "name": "Research",
+      "params": {
+        "system": "You are a research assistant. Synthesize information thoroughly, cite sources when available, and prefer factual accuracy over speculation. When web search results are provided, ground your answer in those sources."
+      },
+      "meta": {
+        "description": "Deep analysis and web research (deepseek-r1:70b)",
+        "profile_image_url": "/static/favicon.png",
+        "capabilities": {
+          "web_search": true,
+          "usage": false
+        },
+        "tags": [{ "name": "Task Mode" }]
+      },
+      "is_active": true
+    },
+    {
+      "id": "task-chat",
+      "base_model_id": "chat",
+      "name": "Chat",
+      "params": {
+        "system": "You are a friendly, concise conversational assistant. Keep answers clear and approachable unless the user asks for detail."
+      },
+      "meta": {
+        "description": "Fast conversational dialogue (phi4:14b)",
+        "profile_image_url": "/static/favicon.png",
+        "capabilities": {
+          "usage": false
+        },
+        "tags": [{ "name": "Task Mode" }]
+      },
+      "is_active": true
+    },
+    {
+      "id": "task-code",
+      "base_model_id": "coding",
+      "name": "Code",
+      "params": {
+        "system": "You are an expert software engineer. Write clean, well-tested code. Explain trade-offs briefly. Prefer minimal, correct diffs over large rewrites. Ask clarifying questions when requirements are ambiguous."
+      },
+      "meta": {
+        "description": "Code generation and debugging (qwen2.5-coder:32b)",
+        "profile_image_url": "/static/favicon.png",
+        "capabilities": {
+          "usage": false
+        },
+        "tags": [{ "name": "Task Mode" }]
+      },
+      "is_active": true
+    },
+    {
+      "id": "task-image",
+      "base_model_id": "image",
+      "name": "Image",
+      "params": {
+        "system": "You help users craft effective text-to-image prompts. When asked to generate an image, suggest a detailed prompt suitable for flux2-klein. Direct users to the Image generation panel for actual rendering."
+      },
+      "meta": {
+        "description": "Text-to-image via flux2-klein (use Image panel for generation)",
+        "profile_image_url": "/static/favicon.png",
+        "capabilities": {
+          "usage": false
+        },
+        "tags": [{ "name": "Task Mode" }]
+      },
+      "is_active": true
+    },
+    {
+      "id": "task-auto",
+      "base_model_id": "auto",
+      "name": "Auto",
+      "params": {
+        "system": "You are a helpful assistant. The system automatically routes your request to the best specialized model (research, coding, chat, or general) based on the user's message."
+      },
+      "meta": {
+        "description": "Automatic intent routing to the best use-case model",
+        "profile_image_url": "/static/favicon.png",
+        "capabilities": {
+          "usage": false
+        },
+        "tags": [{ "name": "Task Mode" }]
+      },
+      "is_active": true
+    }
+  ]
+}

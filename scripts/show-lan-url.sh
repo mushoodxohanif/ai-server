@@ -47,10 +47,12 @@ LAN access URLs
 
 Mac LAN IP:  ${IP}
 
-Employee UI:     ${BASE}/ui/
-Login page:      ${BASE}/ui/login/
-API base:        ${BASE}/v1
-Health check:    ${BASE}/health/liveliness
+Employee UI (Open WebUI):  ${BASE}/
+LiteLLM admin UI:          ${BASE}/ui/login/
+API base (LiteLLM):        ${BASE}/v1
+Health check:              ${BASE}/health/liveliness
+
+Task modes: Open WebUI → model selector → Research, Chat, Code, Image, Auto
 
 Trust TLS cert on each Mac (one-time — required for Chrome):
   ./scripts/trust-caddy-ca.sh

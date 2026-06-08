@@ -1,0 +1,17 @@
+# SearXNG settings for Open WebUI web search (private LAN instance).
+# JSON format is required — without it Open WebUI receives 403 Forbidden.
+# Docs: https://docs.openwebui.com/features/chat-conversations/web-search/providers/searxng/
+
+use_default_settings: true
+
+server:
+  limiter: false
+  image_proxy: true
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  default_lang: ""
+  formats:
+    - html
+    - json

@@ -1,6 +1,6 @@
 # AI Server
 
-On-premises AI gateway running on a **MacBook Pro (Apple M5 Pro, 48 GB RAM)**. [Ollama](https://ollama.com) serves local LLMs; [LiteLLM](https://docs.litellm.ai/) sits in front as an OpenAI-compatible proxy with authentication, rate limits, spend tracking, and a web admin UI. **LAN HTTPS** is provided by [Caddy](https://caddyserver.com/) at `https://<mac-lan-ip>` — no hostname or DNS setup required.
+On-premises AI gateway running on a **MacBook Pro (Apple M5 Pro, 48 GB RAM)**. [Ollama](https://ollama.com) serves local LLMs; [LiteLLM](https://docs.litellm.ai/) sits in front as an OpenAI-compatible proxy with authentication, rate limits, spend tracking, and a web admin UI. **[Open WebUI](https://github.com/open-webui/open-webui)** provides the employee-facing chat interface with task-mode presets. **LAN HTTPS** is provided by [Caddy](https://caddyserver.com/) at `https://<mac-lan-ip>` — no hostname or DNS setup required.
 
 ---
 
@@ -9,31 +9,41 @@ On-premises AI gateway running on a **MacBook Pro (Apple M5 Pro, 48 GB RAM)**. [
 ```
 ┌─────────────────┐     HTTPS (LAN)          ┌──────────────────────────────┐
 │  Employees      │ ───────────────────────► │  https://<mac-lan-ip>        │
-│  (Cursor, CLI,  │      e.g. :443           │  Caddy :443 → LiteLLM :4000  │
-│   web apps)     │                          └──────────────┬───────────────┘
-└─────────────────┘                                         │
+│  (Open WebUI,   │      e.g. :443           │  Caddy :443                  │
+│   Cursor, CLI)  │                          │    /      → Open WebUI :8080 │
+└─────────────────┘                          │    /ui/*  → LiteLLM :4000    │
+                                             └──────────────┬───────────────┘
+                                                            │
                                                             ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │  MacBook Pro M5 Pro                                                          │
 │                                                                              │
 │  ┌───────────────┐    ┌─────────────────────┐    ┌────────────────────────┐  │
-│  │ Caddy         │───►│ LiteLLM             │───►│ Ollama :11434          │  │
-│  │ :443 (Docker) │    │ :4000               │    │                        │  │
-│  └───────────────┘    │ • Auth/keys         │    │ • phi4:14b             │  │
-│                       │ • Rate limits       │    │ • qwen3:32b            │  │
-│                       │ • Admin UI          │    │ • (more planned)       │  │
-│                       │ • Virtual API keys  │    └────────────────────────┘  │
-│                       └──────────┬──────────┘                                │
-│                                  │                                           │
-│                       ┌──────────▼──────────┐                                │
-│                       │ PostgreSQL (Docker) │                                │
-│                       │ :5432               │                                │
-│                       │ • Users & API keys  │                                │
-│                       └─────────────────────┘                                │
+│  │ Caddy         │───►│ Open WebUI (Docker) │───►│ LiteLLM :4000          │  │
+│  │ :443 (Docker) │    │ Employee chat UI    │    │ • Auth/keys            │  │
+│  └───────────────┘    │  Research → SearXNG │    │ • Auto-router          │  │
+│         │             └─────────────────────┘    │ • Admin UI at /ui      │  │
+│         └────────────────────────────────────────┤ • Virtual API keys     │  │
+│                                                  └──────────┬─────────────┘  │
+│                                                             │                │
+│                                                  ┌──────────▼─────────────┐  │
+│                                                  │ Ollama :11434          │  │
+│                                                  │ • phi4, qwen3, …       │  │
+│                                                  └────────────────────────┘  │
+│                       ┌────────────────────────┐                             │
+│                       │ Redis (Docker)         │  LiteLLM cache + WebUI WS   │
+│                       └────────────────────────┘                             │
+│                       ┌────────────────────────┐                             │
+│                       │ SearXNG (Docker)       │  web search for Research    │
+│                       └────────────────────────┘                             │
+│                                                  ┌────────────────────────┐  │
+│                                                  │ PostgreSQL (Docker)    │  │
+│                                                  │ :5432                  │  │
+│                                                  └────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Request flow:** Client → LiteLLM (`Authorization: Bearer <key>`) → Ollama → response streamed back through LiteLLM.
+**Request flow:** Employee → Open WebUI → LiteLLM (`Authorization: Bearer <virtual-key>`) → Ollama → response streamed back.
 
 ---
 
@@ -42,12 +52,17 @@ On-premises AI gateway running on a **MacBook Pro (Apple M5 Pro, 48 GB RAM)**. [
 | File | Purpose |
 |------|---------|
 | `litellm_config.yaml` | Model routing, fallbacks, rate limits, database settings |
-| `docker-compose.yml` | PostgreSQL + Caddy reverse proxy (LAN HTTPS) |
-| `Caddyfile` | TLS and reverse proxy on `:443` → LiteLLM (any LAN IP) |
+| `docker-compose.yml` | Redis + SearXNG + Open WebUI + PostgreSQL + Caddy (LAN HTTPS) |
+| `Caddyfile` | TLS; `/` → Open WebUI, LiteLLM paths → `:4000` |
+| `config/open-webui-presets.json` | Task-mode model presets (Research, Chat, Code, Image, Auto) |
+| `config/searxng/settings.yml` | SearXNG config (JSON API enabled for Open WebUI) |
 | `.env` | Secrets and LAN URL (`LAN_IP`, `PROXY_BASE_URL`, …) |
 | `scripts/show-lan-url.sh` | Print this Mac's LAN IP and employee URLs |
 | `scripts/sync-lan-env.sh` | Update `LAN_IP` and `PROXY_BASE_URL` in `.env` |
 | `scripts/start-litellm.sh` | Start LiteLLM with `.env` loaded |
+| `scripts/setup-openwebui-litellm-key.sh` | Create LiteLLM virtual key for Open WebUI |
+| `scripts/bootstrap-open-webui.sh` | Create admin account, import presets, configure web search |
+| `scripts/verify-web-search.sh` | Verify SearXNG and Open WebUI web search setup |
 | `scripts/trust-caddy-ca.sh` | Install Caddy internal CA on macOS (one-time per device) |
 | `venv/` | Python 3.13 virtualenv with LiteLLM 1.88.0 |
 
@@ -86,8 +101,96 @@ On 48 GB RAM, Ollama loads one large model at a time — expect swap latency whe
 
 ### Image and video generation
 
-- **Image:** `image` proxy is registered; Open WebUI image pipeline wiring is planned in a later phase. LiteLLM chat API does not natively route Ollama image models — use Open WebUI Image mode or a pass-through endpoint.
+- **Image:** `image` proxy is registered; Open WebUI connects to Ollama directly for image generation (`OLLAMA_BASE_URL`). Use the **Image** task-mode preset or the Image panel in Open WebUI.
 - **Video:** `video` proxy returns a static placeholder response until Ollama or a worker Mac supports video generation.
+
+---
+
+## Employee UI (Open WebUI)
+
+Employees use **Open WebUI** at `https://<LAN_IP>/` — a ChatGPT-style interface connected to LiteLLM.
+
+### Task modes
+
+Five presets are imported by `./scripts/bootstrap-open-webui.sh`:
+
+| Preset | LiteLLM model | Use case |
+|--------|---------------|----------|
+| **Research** | `research` | Deep analysis with web search (SearXNG or Tavily) |
+| **Chat** | `chat` | Fast conversational dialogue |
+| **Code** | `coding` | Code generation and debugging |
+| **Image** | `image` | Text-to-image prompt help (Ollama flux2-klein) |
+| **Auto** | `auto` | Semantic router picks the best model |
+
+Select a preset from the **model selector** before chatting. **Auto** is the default.
+
+### Employee onboarding
+
+1. Admin runs bootstrap (one-time):
+
+   ```bash
+   ./scripts/setup-openwebui-litellm-key.sh   # LiteLLM virtual key → .env
+   docker compose up -d
+   ./scripts/bootstrap-open-webui.sh          # admin account + presets
+   ```
+
+2. Share `https://<LAN_IP>/` with employees (run `./scripts/show-lan-url.sh`).
+
+3. Create employee accounts in Open WebUI (**Admin Panel → Users**) or enable Google OAuth (see `.env.example`).
+
+4. Per-user usage is tracked in LiteLLM via `X-OpenWebUI-User-Email` headers when employees chat through Open WebUI.
+
+### LiteLLM virtual key (Open WebUI backend)
+
+Open WebUI uses a dedicated LiteLLM **virtual key** (`OPENWEBUI_LITELLM_KEY`) — not the master key — to call models on behalf of all logged-in users. Create it with `./scripts/setup-openwebui-litellm-key.sh`.
+
+Individual employees can also use their own virtual keys from the LiteLLM admin UI for Cursor/API clients.
+
+---
+
+## Research web search
+
+The **Research** task mode combines the `research` model (`deepseek-r1:70b`) with Open WebUI web search. Search results are injected into the prompt so the model can synthesize an answer with citations.
+
+### Default: self-hosted SearXNG
+
+`docker compose up -d` starts **SearXNG** alongside Open WebUI. No API key or external service is required.
+
+| Component | Role |
+|-----------|------|
+| `searxng` (Docker) | Meta-search engine; JSON API for Open WebUI |
+| `config/searxng/settings.yml` | Enables `format=json` (required by Open WebUI) |
+| Research preset | `web_search: true` capability — only this task mode triggers search |
+
+Bootstrap configures Open WebUI automatically:
+
+```bash
+./scripts/bootstrap-open-webui.sh
+./scripts/verify-web-search.sh
+```
+
+### Alternative: Tavily free tier
+
+For managed search (1,000 searches/month on the free tier), add to `.env`:
+
+```bash
+WEB_SEARCH_ENGINE=tavily
+TAVILY_API_KEY=tvly-...
+```
+
+Get a key at [tavily.com](https://tavily.com/). Re-run bootstrap (or update **Admin Panel → Settings → Web Search**) after changing engines.
+
+### Using Research mode
+
+1. In Open WebUI, select the **Research** preset from the model selector.
+2. Enable **Web Search** for the chat (toggle in the message input area, or `+` menu).
+3. Ask a question that needs current information — e.g. "What are the latest EU AI Act enforcement dates?"
+
+Search runs before the model responds. Other task modes (Chat, Code, Image, Auto) do not enable web search by default.
+
+### Environment variables
+
+See `.env.example` for `WEB_SEARCH_ENGINE`, `SEARXNG_*`, `TAVILY_API_KEY`, and tuning knobs (`WEB_SEARCH_RESULT_COUNT`, etc.).
 
 ---
 
@@ -130,6 +233,8 @@ From `litellm_config.yaml`:
 
 Database: `postgresql://litellm:litellm@localhost:5432/litellm` (Docker).
 
+Redis: `127.0.0.1:6379` (Docker) — response cache, router cooldown state, and Open WebUI websocket coordination.
+
 ---
 
 ## Prerequisites
@@ -167,34 +272,51 @@ Create `.env` in the project root:
 ```bash
 LITELLM_MASTER_KEY="sk-master-<generate-a-long-random-string>"
 DATABASE_URL="postgresql://litellm:litellm@localhost:5432/litellm"
+REDIS_PASSWORD="<generate-a-random-string>"
+REDIS_HOST="127.0.0.1"
+REDIS_PORT="6379"
 
 # This Mac's LAN IP — employees use https://<LAN_IP>/ui/
 LAN_IP="172.16.10.215"
 PROXY_BASE_URL="https://172.16.10.215"
 ```
 
-Generate a strong master key:
+Generate secrets:
 
 ```bash
 openssl rand -hex 32 | sed 's/^/sk-master-/'
+openssl rand -hex 16   # REDIS_PASSWORD
 ```
 
 > **Security:** Prefer keeping secrets in `.env` only. The master key is also duplicated in `litellm_config.yaml` today — consider removing it from the YAML and relying on `LITELLM_MASTER_KEY` from the environment.
 
-### 3. PostgreSQL and Caddy
+### 3. PostgreSQL, Redis, SearXNG, Open WebUI, and Caddy
+
+Set `REDIS_PASSWORD` in `.env` (see `.env.example`), then:
 
 ```bash
 docker compose up -d
 ```
 
-This starts **PostgreSQL** and **Caddy** (LAN HTTPS on ports 80/443).
+This starts **Redis**, **SearXNG**, **Open WebUI**, **PostgreSQL**, and **Caddy** (LAN HTTPS on ports 80/443).
 
 Verify:
 
 ```bash
 docker compose ps
-# litellm-postgres   Up   0.0.0.0:5432->5432/tcp
-# ai-caddy           Up   0.0.0.0:443->443/tcp, 0.0.0.0:80->80/tcp
+# redis             Up   127.0.0.1:6379->6379/tcp
+# searxng           Up
+# open-webui        Up   127.0.0.1:8080->8080/tcp
+# litellm-postgres  Up   0.0.0.0:5432->5432/tcp
+# ai-caddy          Up   0.0.0.0:443->443/tcp, 0.0.0.0:80->80/tcp
+```
+
+Configure Open WebUI (one-time):
+
+```bash
+# Add WEBUI_SECRET_KEY, OPENWEBUI_ADMIN_* to .env (see .env.example)
+./scripts/setup-openwebui-litellm-key.sh
+./scripts/bootstrap-open-webui.sh
 ```
 
 ### 4. LAN URL
@@ -231,7 +353,7 @@ ollama pull phi4:14b
 Start services in order:
 
 ```bash
-# Terminal 1 — database (if not already running)
+# Terminal 1 — Docker services (Open WebUI, Postgres, Caddy)
 docker compose up -d
 
 # Terminal 2 — LiteLLM proxy
@@ -321,7 +443,11 @@ curl -sk https://172.16.10.215/health/liveliness
 
 | Service | Port | URL |
 |---------|------|-----|
-| LiteLLM UI / API (HTTPS) | 443 | `https://<LAN_IP>/ui/login/` |
+| Open WebUI (employee UI, HTTPS) | 443 | `https://<LAN_IP>/` |
+| LiteLLM admin UI (HTTPS) | 443 | `https://<LAN_IP>/ui/login/` |
+| Open WebUI (local bootstrap) | 8080 | `http://127.0.0.1:8080` |
+| Redis (Docker) | 6379 | `redis://127.0.0.1:6379` (LiteLLM on host) |
+| SearXNG (Docker internal) | — | `http://searxng:8080` (Open WebUI only) |
 | LiteLLM (direct, HTTP) | 4000 | `http://localhost:4000` |
 | Ollama | 11434 | `http://localhost:11434` (internal only) |
 
@@ -389,6 +515,10 @@ This is an optional Weights & Biases integration missing OpenTelemetry. It does 
 | `ERR_SSL_PROTOCOL_ERROR` on IP URL | Browser sends no SNI for IP addresses | `default_sni` in Caddyfile; run `./scripts/trust-caddy-ca.sh` |
 | TLS warning in browser | Caddy internal CA not trusted | Run `./scripts/trust-caddy-ca.sh` on that device |
 | Wrong IP after network change | `LAN_IP` stale | Re-run `./scripts/sync-lan-env.sh` |
+| Web search 403 from SearXNG | JSON format disabled | Confirm `config/searxng/settings.yml` lists `json` under `search.formats` |
+| Web search returns no results | SearXNG not running | `docker compose up -d`; run `./scripts/verify-web-search.sh` |
+| Research mode ignores search | Wrong preset or toggle off | Select **Research** preset; enable web search in the chat input |
+| Redis connection refused | `REDIS_PASSWORD` missing or Redis not up | Set `REDIS_PASSWORD` in `.env`; `docker compose up -d redis` |
 
 ---
 
@@ -409,9 +539,12 @@ This is an optional Weights & Biases integration missing OpenTelemetry. It does 
 | Component | Version |
 |-----------|---------|
 | LiteLLM | 1.88.0 |
+| Open WebUI | main (Docker) |
 | litellm-enterprise | 0.1.42 |
 | Python | 3.13.0 |
 | PostgreSQL | 16 (Alpine, Docker) |
+| Redis | 7 (Alpine, Docker) |
+| SearXNG | latest (Docker) |
 | Caddy | 2 (Alpine, Docker) |
 | macOS | 26.5.1 |
 | Hardware | MacBook Pro, Apple M5 Pro, 48 GB RAM |
@@ -425,10 +558,15 @@ This is an optional Weights & Biases integration missing OpenTelemetry. It does 
 docker compose up -d
 ./scripts/start-litellm.sh
 
+# First-time Open WebUI setup
+./scripts/setup-openwebui-litellm-key.sh
+./scripts/bootstrap-open-webui.sh
+./scripts/verify-web-search.sh
+
 # Stop LiteLLM
 # Ctrl+C in the LiteLLM terminal
 
-# Stop Docker services (PostgreSQL + Caddy)
+# Stop Docker services (Open WebUI, PostgreSQL, Caddy)
 docker compose down
 
 # Pull a new Ollama model

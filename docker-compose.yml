@@ -1,4 +1,86 @@
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    restart: unless-stopped
+    volumes:
+      - ./config/searxng:/etc/searxng:rw
+    environment:
+      SEARXNG_BASE_URL: http://searxng:8080/
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-change-me-in-env}
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+    logging:
+      driver: json-file
+      options:
+        max-size: 1m
+        max-file: "1"
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      searxng:
+        condition: service_started
+    environment:
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OPENAI_API_BASE_URL: http://host.docker.internal:4000/v1
+      OPENAI_API_KEY: ${OPENWEBUI_LITELLM_KEY}
+      ENABLE_OLLAMA_API: "true"
+      ENABLE_OPENAI_API: "true"
+      ENABLE_FORWARD_USER_INFO_HEADERS: "true"
+      WEBUI_NAME: Xorora AI
+      WEBUI_URL: ${PROXY_BASE_URL}
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}
+      ENABLE_SIGNUP: ${OPENWEBUI_ENABLE_SIGNUP:-false}
+      DEFAULT_MODELS: task-auto
+      # Web search — default: self-hosted SearXNG; set WEB_SEARCH_ENGINE=tavily + TAVILY_API_KEY to use Tavily
+      ENABLE_WEB_SEARCH: "true"
+      WEB_SEARCH_ENGINE: ${WEB_SEARCH_ENGINE:-searxng}
+      WEB_SEARCH_RESULT_COUNT: ${WEB_SEARCH_RESULT_COUNT:-5}
+      WEB_SEARCH_CONCURRENT_REQUESTS: ${WEB_SEARCH_CONCURRENT_REQUESTS:-10}
+      WEB_LOADER_CONCURRENT_REQUESTS: ${WEB_LOADER_CONCURRENT_REQUESTS:-10}
+      SEARXNG_QUERY_URL: ${SEARXNG_QUERY_URL:-http://searxng:8080/search?q=<query>}
+      SEARXNG_LANGUAGE: ${SEARXNG_LANGUAGE:-en}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      BYPASS_WEB_SEARCH_EMBEDDING_AND_RETRIEVAL: "true"
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      # Optional Google OAuth — set in .env when ready (see .env.example)
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
+      ENABLE_OAUTH_SIGNUP: ${ENABLE_OAUTH_SIGNUP:-false}
+      OAUTH_MERGE_ACCOUNTS_BY_EMAIL: ${OAUTH_MERGE_ACCOUNTS_BY_EMAIL:-false}
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - open_webui_data:/app/backend/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
   postgres:
     image: postgres:16-alpine
     container_name: litellm-postgres
@@ -16,6 +98,8 @@ services:
     image: caddy:2-alpine
     container_name: ai-caddy
     restart: unless-stopped
+    depends_on:
+      - open-webui
     env_file:
       - .env
     ports:
@@ -30,5 +114,7 @@ services:
 
 volumes:
   litellm_pgdata:
+  redis_data:
+  open_webui_data:
   caddy_data:
   caddy_config:

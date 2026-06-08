@@ -1,31 +1,56 @@
-# LAN HTTPS for LiteLLM — set LAN_IP in .env
+# LAN HTTPS — set LAN_IP in .env
 #
 # Browsers do NOT send SNI for IP addresses — default_sni is required.
 # See: https://github.com/caddyserver/caddy/issues/6364
+#
+# Routing:
+#   / (default)  → Open WebUI (employee chat UI)
+#   LiteLLM paths → LiteLLM admin UI + OpenAI-compatible API
 
 {
-auto_https disable_redirects
-default_sni {$LAN_IP}
-servers {
-protocols h1 h2
-}
+	auto_https disable_redirects
+	default_sni {$LAN_IP}
+	servers {
+		protocols h1 h2
+	}
 }
 
 http://{$LAN_IP} {
-redir https://{host}{uri} permanent
+	redir https://{host}{uri} permanent
 }
 
 https://{$LAN_IP}, https://:443 {
-tls internal
+	tls internal
 
-@ui_login path /ui/login
-redir @ui_login /ui/login/ permanent
+	@litellm {
+		path /ui /ui/* /sso /sso/* /v1 /v1/* /chat /chat/* /health /health/*
+		path /key /key/* /litellm /litellm/* /model /model/* /team /team/*
+		path /user /user/* /budget /budget/* /spend /spend/* /global /global/*
+		path /config /config/* /public /public/* /router /router/* /engine /engine/*
+		path /embeddings /moderations /responses /batches /files /assistants /threads
+		path /openapi.json /docs /redoc /audio /audio/* /images /images/*
+	}
 
-reverse_proxy host.docker.internal:4000 {
-header_up Host {host}
-header_up X-Forwarded-Host {host}
-header_up X-Real-IP {remote_host}
-header_up X-Forwarded-For {remote_host}
-header_up X-Forwarded-Proto {scheme}
-}
+	handle @litellm {
+		@ui_login path /ui/login
+		redir @ui_login /ui/login/ permanent
+
+		reverse_proxy host.docker.internal:4000 {
+			header_up Host {host}
+			header_up X-Forwarded-Host {host}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	handle {
+		reverse_proxy open-webui:8080 {
+			header_up Host {host}
+			header_up X-Forwarded-Host {host}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
 }
