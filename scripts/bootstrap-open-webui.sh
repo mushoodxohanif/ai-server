@@ -171,6 +171,62 @@ print(f"Configured web search: engine={engine}, enabled=True (Research preset us
 PY
 }
 
+configure_image_generation() {
+  local token="$1"
+
+  WEBUI_URL="${WEBUI_URL}" TOKEN="${token}" \
+    IMAGE_GENERATION_MODEL="${IMAGE_GENERATION_MODEL:-x/flux2-klein:9b}" \
+    IMAGES_OPENAI_API_BASE_URL="${IMAGES_OPENAI_API_BASE_URL:-http://host.docker.internal:11434/v1}" \
+    python3 - <<'PY'
+import json
+import os
+import sys
+import urllib.error
+import urllib.request
+
+webui_url = os.environ["WEBUI_URL"]
+token = os.environ["TOKEN"]
+headers = {"Authorization": f"Bearer {token}"}
+
+try:
+    with urllib.request.urlopen(
+        urllib.request.Request(f"{webui_url}/api/v1/images/config", headers=headers)
+    ) as resp:
+        config = json.load(resp)
+except urllib.error.HTTPError as exc:
+    print(f"Failed to read image config (HTTP {exc.code})", file=sys.stderr)
+    sys.exit(1)
+
+config["ENABLE_IMAGE_GENERATION"] = True
+config["ENABLE_IMAGE_PROMPT_GENERATION"] = False
+config["IMAGE_GENERATION_ENGINE"] = "openai"
+config["IMAGE_GENERATION_MODEL"] = os.environ.get("IMAGE_GENERATION_MODEL", "x/flux2-klein:9b")
+config["IMAGES_OPENAI_API_BASE_URL"] = os.environ.get(
+    "IMAGES_OPENAI_API_BASE_URL", "http://host.docker.internal:11434/v1"
+)
+config["IMAGES_OPENAI_API_KEY"] = "ollama"
+config["IMAGE_SIZE"] = "1024x1024"
+config["IMAGE_STEPS"] = 4
+
+payload = json.dumps(config).encode()
+update_req = urllib.request.Request(
+    f"{webui_url}/api/v1/images/config/update",
+    data=payload,
+    headers={**headers, "Content-Type": "application/json"},
+    method="POST",
+)
+try:
+    with urllib.request.urlopen(update_req) as resp:
+        json.load(resp)
+except urllib.error.HTTPError as exc:
+    body = exc.read().decode("utf-8", errors="replace")
+    print(f"Failed to update image config (HTTP {exc.code}): {body}", file=sys.stderr)
+    sys.exit(1)
+
+print("Configured image generation: Ollama flux2-klein via /v1/images/generations.")
+PY
+}
+
 echo "Waiting for Open WebUI at ${WEBUI_URL}..."
 wait_for_webui
 
@@ -186,6 +242,7 @@ fi
 
 import_presets "${TOKEN}"
 configure_web_search "${TOKEN}"
+configure_image_generation "${TOKEN}"
 
 echo ""
 echo "Bootstrap complete."
@@ -193,3 +250,4 @@ echo "  Employee UI: ${PROXY_BASE_URL:-${WEBUI_URL}}"
 echo "  Admin login: ${ADMIN_EMAIL}"
 echo "  Task modes:  Workspace → Models → filter by tag \"Task Mode\""
 echo "  Web search:  Research preset + SearXNG (or Tavily if configured)"
+echo "  Image gen:   Image preset → type a prompt (e.g. \"juicy strawberry\")"

@@ -78,7 +78,7 @@ LiteLLM exposes these **use-case proxy names** (OpenAI-compatible). Each maps to
 | `coding` | `qwen2.5-coder:32b` | Code generation and debugging |
 | `chat` | `phi4:14b` | Fast conversational dialogue |
 | `general` | `qwen3:32b` | All-rounder — tools, thinking, general tasks |
-| `image` | `x/flux2-klein` | Text-to-image generation |
+| `image` | `x/flux2-klein:9b` | Text-to-image generation |
 | `video` | *(placeholder)* | Returns "coming soon" — no Ollama video model yet |
 
 **Fallback:** If `research`, `coding`, or `chat` fails, LiteLLM retries with `general`.
@@ -94,14 +94,14 @@ Installed today: `phi4:14b`, `qwen3:32b`. Remaining pulls in progress:
 ```bash
 ollama pull deepseek-r1:70b      # research (~40 GB)
 ollama pull qwen2.5-coder:32b    # coding (~20 GB)
-ollama pull x/flux2-klein        # image (~6 GB)
+ollama pull x/flux2-klein:9b     # image (~12 GB)
 ```
 
 On 48 GB RAM, Ollama loads one large model at a time — expect swap latency when switching between `research` (~40 GB) and `general` (~20 GB).
 
 ### Image and video generation
 
-- **Image:** `image` proxy is registered; Open WebUI connects to Ollama directly for image generation (`OLLAMA_BASE_URL`). Use the **Image** task-mode preset or the Image panel in Open WebUI.
+- **Image:** Open WebUI generates images via Ollama's OpenAI-compatible API (`/v1/images/generations`) using `x/flux2-klein:9b`. Select the **Image** task preset and type a prompt (e.g. "juicy strawberry") — the image appears in chat. Configured in `docker-compose.yml` and `./scripts/bootstrap-open-webui.sh`.
 - **Video:** `video` proxy returns a static placeholder response until Ollama or a worker Mac supports video generation.
 
 ---
@@ -119,7 +119,7 @@ Five presets are imported by `./scripts/bootstrap-open-webui.sh`:
 | **Research** | `research` | Deep analysis with web search (SearXNG or Tavily) |
 | **Chat** | `chat` | Fast conversational dialogue |
 | **Code** | `coding` | Code generation and debugging |
-| **Image** | `image` | Text-to-image prompt help (Ollama flux2-klein) |
+| **Image** | `chat` + image gen | Text-to-image via Ollama flux2-klein:9b |
 | **Auto** | `auto` | Semantic router picks the best model |
 
 Select a preset from the **model selector** before chatting. **Auto** is the default.

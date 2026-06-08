@@ -69,7 +69,7 @@ model_list:
   # --- Image generation ---
   - model_name: image
     litellm_params:
-      model: ollama/x/flux2-klein
+      model: ollama/x/flux2-klein:9b
       api_base: http://localhost:11434
     model_info:
       mode: image

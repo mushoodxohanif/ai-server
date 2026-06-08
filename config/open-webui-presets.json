@@ -54,15 +54,16 @@
     },
     {
       "id": "task-image",
-      "base_model_id": "image",
+      "base_model_id": "chat",
       "name": "Image",
       "params": {
-        "system": "You help users craft effective text-to-image prompts. When asked to generate an image, suggest a detailed prompt suitable for flux2-klein. Direct users to the Image generation panel for actual rendering."
+        "system": "You generate images from the user's prompt. Keep text replies minimal — the image is the primary output."
       },
       "meta": {
-        "description": "Text-to-image via flux2-klein (use Image panel for generation)",
+        "description": "Text-to-image via Ollama flux2-klein:9b",
         "profile_image_url": "/static/favicon.png",
         "capabilities": {
+          "image_generation": true,
           "usage": false
         },
         "tags": [{ "name": "Task Mode" }]
