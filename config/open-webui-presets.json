@@ -14,6 +14,7 @@
           "web_search": true,
           "usage": false
         },
+        "defaultFeatureIds": ["web_search"],
         "tags": [{ "name": "Task Mode" }]
       },
       "is_active": true
@@ -57,7 +58,7 @@
       "base_model_id": "chat",
       "name": "Image",
       "params": {
-        "system": "You generate images from the user's prompt. Keep text replies minimal — the image is the primary output."
+        "system": ""
       },
       "meta": {
         "description": "Text-to-image via Ollama flux2-klein:9b",
@@ -66,6 +67,7 @@
           "image_generation": true,
           "usage": false
         },
+        "defaultFeatureIds": ["image_generation"],
         "tags": [{ "name": "Task Mode" }]
       },
       "is_active": true

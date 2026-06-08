@@ -101,7 +101,7 @@ On 48 GB RAM, Ollama loads one large model at a time — expect swap latency whe
 
 ### Image and video generation
 
-- **Image:** Open WebUI generates images via Ollama's OpenAI-compatible API (`/v1/images/generations`) using `x/flux2-klein:9b`. Select the **Image** task preset and type a prompt (e.g. "juicy strawberry") — the image appears in chat. Configured in `docker-compose.yml` and `./scripts/bootstrap-open-webui.sh`.
+- **Image:** Select the **Image** preset and type your prompt (e.g. "juicy strawberry in Cuphead style"). Open WebUI generates via Ollama `x/flux2-klein:9b` — you should see "Creating image" then the result (~20–30s). If you get a text-only reply, start a **new chat** with the Image preset (existing chats may not pick up preset updates).
 - **Video:** `video` proxy returns a static placeholder response until Ollama or a worker Mac supports video generation.
 
 ---
